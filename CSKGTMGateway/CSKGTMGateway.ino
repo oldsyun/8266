@@ -1,3 +1,4 @@
+#include <FS.h>
 #include <ModbusMaster.h>
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
@@ -17,6 +18,7 @@
 #define Gateway_AnnouncementMsg "online"
 #define TimeBetweenReadingModbus 60000
 #define toMQTT  "/data"
+
 #if defined(ESP8266) && !defined(D5)
 #define D5 (14)
 #define D6 (12)
@@ -48,19 +50,14 @@ void saveConfigCallback () {
   shouldSaveConfig = true;
 }
 
-void setup_wifimanager(bool reset_settings)
-{ if (reset_settings)
-    {
-      WiFi.disconnect(true);
-      Serial.println("Formatting requested, result:");
-      Serial.println(SPIFFS.format());
-      ESP.reset();
-      }
+void setup_wifimanager()
+{
   WiFi.mode(WIFI_STA);
   Serial.println("mounting FS...");
   if (SPIFFS.begin()) {
     Serial.println("mounted file system");
-    if (SPIFFS.exists("/config.json")) {
+    if (SPIFFS.exists("/config.json")) 
+    {
       //file exists, reading and loading
       Serial.println("reading config file");
       File configFile = SPIFFS.open("/config.json", "r");
@@ -73,7 +70,8 @@ void setup_wifimanager(bool reset_settings)
         DynamicJsonBuffer jsonBuffer;
         JsonObject& json = jsonBuffer.parseObject(buf.get());
         json.printTo(Serial);
-        if (json.success()) {
+        if (json.success())
+        {
           Serial.println("\nparsed json");
           if (json.containsKey("mqtt_server"))
             strcpy(mqtt_server, json["mqtt_server"]);
@@ -87,7 +85,9 @@ void setup_wifimanager(bool reset_settings)
             strcpy(mqtt_topic, json["mqtt_topic"]);
           if (json.containsKey("gateway_name"))
             strcpy(gateway_name, json["gateway_name"]);
-        } else {
+        } 
+        else 
+        {
           Serial.println("failed to load json config");
         }
         configFile.close();
@@ -97,9 +97,6 @@ void setup_wifimanager(bool reset_settings)
     Serial.println("failed to mount FS");
   }
   //end read
-
-
-
   // The extra parameters to be configured (can be either global or just in the setup)
   // After connecting, parameter.getValue() will get you the configured value
   // id/name placeholder/prompt default length
@@ -132,23 +129,8 @@ void setup_wifimanager(bool reset_settings)
   wifiManager.addParameter(&custom_gateway_name);
   wifiManager.addParameter(&custom_mqtt_topic);
 
-  //reset settings - for testing
-  //wifiManager.resetSettings();
-
-  //set minimu quality of signal so it ignores AP's under that quality
-  //defaults to 8%
-  //wifiManager.setMinimumSignalQuality();
-  
-  //sets timeout until configuration portal gets turned off
-  //useful to make it all retry or go to sleep
-  //in seconds
-  //wifiManager.setTimeout(120);
-
-  //fetches ssid and pass and tries to connect
-  //if it does not connect it starts an access point with the specified name
-  //here  "AutoConnectAP"
-  //and goes into a blocking loop awaiting configuration
-  if (!wifiManager.autoConnect("CSKGTMGateway", "j10j10j10")) {
+  if (!wifiManager.autoConnect("CSKGTMGateway", "j10j10j10")) 
+  {
     Serial.println("failed to connect and hit timeout");
     delay(3000);
     //reset and try again, or maybe put it to deep sleep
@@ -195,12 +177,13 @@ void setup_parameters()
   strcat(mqtt_topic, gateway_name);
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
+void callback(char* topic, byte* payload, unsigned int length)
+ {
 
 }
 
-
-void reconnect() {
+void reconnect()
+ {
   // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
@@ -219,7 +202,7 @@ void reconnect() {
       failure_number++; // we count the failure
       if (failure_number > maxMQTTretry && !connectedOnce)
       {
-        setup_wifimanager(false);
+        setup_wifimanager();
         setup_parameters();
       }
       Serial.println(F("failed, rc="));
@@ -236,7 +219,7 @@ void setup() {
   node.begin(1, swSer1);
   WiFi.macAddress(MAC_array);
   sprintf(gateway_name, "%s%02X%02X%02X%02X%02X%02X", gateway_name,MAC_array[0],MAC_array[1],MAC_array[2], MAC_array[3],MAC_array[4],MAC_array[5]);
-  setup_wifimanager(false);
+  setup_wifimanager();
   Serial.println(WiFi.macAddress());
   Serial.println(WiFi.localIP().toString());
   long port;
@@ -250,78 +233,83 @@ void setup() {
   tickerPub.attach(60,MqttToPub); //60s 一次发送
 }
 
-void MqttToPub(){
-  if (connectedOnce){
+void MqttToPub()
+{
+  if (connectedOnce)
+  {
     mRead();
     }
-  else{
+  else
+  {
     Serial.println("wifi Not Ready yet");
     }
 }
 
-void mRead(){
-    uint8_t result = node.readHoldingRegisters(0xA0, 51);
-    if (result== node.ku8MBSuccess){
-      const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(25);
-      DynamicJsonBuffer jsonBuffer(capacity);
-      JsonObject& root = jsonBuffer.createObject();
-      JsonArray& device = root.createNestedArray("device");
-      JsonObject& device_0 = device.createNestedObject();
-      device_0["dev_name"] = gateway_name;
-      device_0["comm_s"] = "1";
-      JsonObject& device_0_variable = device_0.createNestedObject("variable");
-      device_0_variable["V1"] =  node.getResponseBuffer(0)/100.0f;
-      device_0_variable["V2"] = node.getResponseBuffer(1)/100.0f;
-      device_0_variable["V3"] = node.getResponseBuffer(2)/100.0f;
-      device_0_variable["I1"] = node.getResponseBuffer(3)/100.0f;
-      device_0_variable["I2"] = node.getResponseBuffer(4)/100.0f;
-      device_0_variable["I3"] = node.getResponseBuffer(5)/100.0f;
-      device_0_variable["I6"] = node.getResponseBuffer(6)/100.0f;
-      device_0_variable["I7"] = node.getResponseBuffer(7)/100.0f;
-      device_0_variable["I8"] = node.getResponseBuffer(8)/100.0f;
-      device_0_variable["I9"] = node.getResponseBuffer(9)/100.0f;
-      device_0_variable["I10"] = node.getResponseBuffer(10)/100.0f;
-      device_0_variable["I11"] = node.getResponseBuffer(11)/100.0f;
-      device_0_variable["I12"] = node.getResponseBuffer(12)/100.0f;
-      device_0_variable["P1"] = node.getResponseBuffer(13);
-      device_0_variable["P2"] = node.getResponseBuffer(14);
-      device_0_variable["P3"] = node.getResponseBuffer(15);
-      device_0_variable["P4"] = node.getResponseBuffer(16);
-      device_0_variable["P5"] = node.getResponseBuffer(17);
-      device_0_variable["P6"] = node.getResponseBuffer(18);
-      device_0_variable["P7"] = node.getResponseBuffer(19);
-      device_0_variable["P8"] = node.getResponseBuffer(20);
-      device_0_variable["P9"] = node.getResponseBuffer(21);
-      device_0_variable["P10"] = node.getResponseBuffer(22);
-      device_0_variable["P11"] = node.getResponseBuffer(23);
-      device_0_variable["P12"] = node.getResponseBuffer(24);
-      device_0_variable["EP1"] = (node.getResponseBuffer(28)+node.getResponseBuffer(29) << 16)/100.0f;
-      device_0_variable["EP2"] = (node.getResponseBuffer(30)+node.getResponseBuffer(31) << 16)/100.0f;
-      device_0_variable["EP3"] = (node.getResponseBuffer(32)+node.getResponseBuffer(33) << 16)/100.0f;
-      device_0_variable["EP4"] = (node.getResponseBuffer(34)+node.getResponseBuffer(35) << 16)/100.0f;
-      device_0_variable["EP5"] = (node.getResponseBuffer(36)+node.getResponseBuffer(37) << 16)/100.0f;
-      device_0_variable["EP6"] = (node.getResponseBuffer(38)+node.getResponseBuffer(39) << 16)/100.0f;
-      device_0_variable["EP7"] = (node.getResponseBuffer(40)+node.getResponseBuffer(41) << 16)/100.0f;
-      device_0_variable["EP8"] = (node.getResponseBuffer(42)+node.getResponseBuffer(43) << 16)/100.0f;
-      device_0_variable["EP9"] = (node.getResponseBuffer(44)+node.getResponseBuffer(45) << 16)/100.0f;
-      device_0_variable["EP10"] = (node.getResponseBuffer(46)+node.getResponseBuffer(47) << 16)/100.0f;
-      device_0_variable["EP11"] = (node.getResponseBuffer(48)+node.getResponseBuffer(49) << 16)/100.0f;
-      device_0_variable["EP12"] = (node.getResponseBuffer(50)+node.getResponseBuffer(51) << 16)/100.0f;
-      String topic = String(mqtt_topic) + String(toMQTT);
-      char JSONmessageBuffer[1300];
-      root.printTo(JSONmessageBuffer,sizeof(JSONmessageBuffer));
-      client.publish((char *)topic.c_str(),JSONmessageBuffer);
-      Serial.println( topic);
-      root.printTo(Serial);
-      Serial.println(" ");
-      }
-      else {
-        Serial.println( "ttl errr");
-        }
-   // }
+void mRead()
+{
+  uint8_t result = node.readHoldingRegisters(0xA0, 51);
+  if (result== node.ku8MBSuccess)
+  {
+    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(25);
+    DynamicJsonBuffer jsonBuffer(capacity);
+    JsonObject& root = jsonBuffer.createObject();
+    JsonArray& device = root.createNestedArray("device");
+    JsonObject& device_0 = device.createNestedObject();
+    device_0["dev_name"] = gateway_name;
+    device_0["comm_s"] = "1";
+    JsonObject& device_0_variable = device_0.createNestedObject("variable");
+    device_0_variable["V1"] =  node.getResponseBuffer(0)/100.0f;
+    device_0_variable["V2"] = node.getResponseBuffer(1)/100.0f;
+    device_0_variable["V3"] = node.getResponseBuffer(2)/100.0f;
+    device_0_variable["I1"] = node.getResponseBuffer(3)/100.0f;
+    device_0_variable["I2"] = node.getResponseBuffer(4)/100.0f;
+    device_0_variable["I3"] = node.getResponseBuffer(5)/100.0f;
+    device_0_variable["I6"] = node.getResponseBuffer(6)/100.0f;
+    device_0_variable["I7"] = node.getResponseBuffer(7)/100.0f;
+    device_0_variable["I8"] = node.getResponseBuffer(8)/100.0f;
+    device_0_variable["I9"] = node.getResponseBuffer(9)/100.0f;
+    device_0_variable["I10"] = node.getResponseBuffer(10)/100.0f;
+    device_0_variable["I11"] = node.getResponseBuffer(11)/100.0f;
+    device_0_variable["I12"] = node.getResponseBuffer(12)/100.0f;
+    device_0_variable["P1"] = node.getResponseBuffer(13);
+    device_0_variable["P2"] = node.getResponseBuffer(14);
+    device_0_variable["P3"] = node.getResponseBuffer(15);
+    device_0_variable["P4"] = node.getResponseBuffer(16);
+    device_0_variable["P5"] = node.getResponseBuffer(17);
+    device_0_variable["P6"] = node.getResponseBuffer(18);
+    device_0_variable["P7"] = node.getResponseBuffer(19);
+    device_0_variable["P8"] = node.getResponseBuffer(20);
+    device_0_variable["P9"] = node.getResponseBuffer(21);
+    device_0_variable["P10"] = node.getResponseBuffer(22);
+    device_0_variable["P11"] = node.getResponseBuffer(23);
+    device_0_variable["P12"] = node.getResponseBuffer(24);
+    device_0_variable["EP1"] = (node.getResponseBuffer(28)+node.getResponseBuffer(29) << 16)/100.0f;
+    device_0_variable["EP2"] = (node.getResponseBuffer(30)+node.getResponseBuffer(31) << 16)/100.0f;
+    device_0_variable["EP3"] = (node.getResponseBuffer(32)+node.getResponseBuffer(33) << 16)/100.0f;
+    device_0_variable["EP4"] = (node.getResponseBuffer(34)+node.getResponseBuffer(35) << 16)/100.0f;
+    device_0_variable["EP5"] = (node.getResponseBuffer(36)+node.getResponseBuffer(37) << 16)/100.0f;
+    device_0_variable["EP6"] = (node.getResponseBuffer(38)+node.getResponseBuffer(39) << 16)/100.0f;
+    device_0_variable["EP7"] = (node.getResponseBuffer(40)+node.getResponseBuffer(41) << 16)/100.0f;
+    device_0_variable["EP8"] = (node.getResponseBuffer(42)+node.getResponseBuffer(43) << 16)/100.0f;
+    device_0_variable["EP9"] = (node.getResponseBuffer(44)+node.getResponseBuffer(45) << 16)/100.0f;
+    device_0_variable["EP10"] = (node.getResponseBuffer(46)+node.getResponseBuffer(47) << 16)/100.0f;
+    device_0_variable["EP11"] = (node.getResponseBuffer(48)+node.getResponseBuffer(49) << 16)/100.0f;
+    device_0_variable["EP12"] = (node.getResponseBuffer(50)+node.getResponseBuffer(51) << 16)/100.0f;
+    String topic = String(mqtt_topic) + String(toMQTT);
+    char JSONmessageBuffer[1300];
+    root.printTo(JSONmessageBuffer,sizeof(JSONmessageBuffer));
+    client.publish((char *)topic.c_str(),JSONmessageBuffer);
+    Serial.println( topic);
+    root.printTo(Serial);
+    Serial.println(" ");
+    }
+    else 
+    {
+        Serial.println( "ttl modbus read error!");
+    }
 }
   
-void flash()                        
+void flash()
 {  
   if (connectedOnce){
     static boolean output = HIGH;
@@ -330,7 +318,7 @@ void flash()
     }
   else{
     digitalWrite(2, LOW);
-    }                    
+    }
 }
 
 void loop() {
@@ -345,8 +333,7 @@ void loop() {
       lastMQTTReconnectAttempt = 0;
       client.loop();    
     }
-    else
-    {
+    else{
       connectedOnce=false;
       if (now - lastMQTTReconnectAttempt > 5000)
       {
