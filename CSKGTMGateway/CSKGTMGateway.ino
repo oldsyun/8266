@@ -4,10 +4,11 @@
 #include <ESP8266WiFi.h>
 #include <SoftwareSerial.h>
 #include <WiFiManager.h>  
+#include <Ticker.h>
 
 #define parameters_size 20
 #define mqtt_topic_max_size 100
-#define Gateway_Name "CSKGTMGateway"
+#define Gateway_Name ""
 #define maxMQTTretry 10
 #define will_Topic  "/state"
 #define will_QoS 0
@@ -33,14 +34,14 @@ bool connectedOnce = false;
 int failure_number = 0;
 unsigned long lastMQTTReconnectAttempt = 0;
 unsigned long lastNTWKReconnectAttempt = 0;
-unsigned long timemread = 0;
 uint8_t MAC_array[6];
 
 ModbusMaster node;
 SoftwareSerial swSer1;
 WiFiClient espClient;
 PubSubClient client(espClient);
-//Ticker tickerRead;
+Ticker tickerRead;
+Ticker tickerPub;
 
 void saveConfigCallback () {
   Serial.println("Should save config");
@@ -219,6 +220,7 @@ void reconnect() {
       if (failure_number > maxMQTTretry && !connectedOnce)
       {
         setup_wifimanager(false);
+        setup_parameters();
       }
       Serial.println(F("failed, rc="));
       Serial.println(client.state());
@@ -244,14 +246,20 @@ void setup() {
   client.setCallback(callback);
   lastMQTTReconnectAttempt = 0;
   lastNTWKReconnectAttempt = 0;
-  timemread = 0;
+  tickerRead.attach(2, flash);
+  tickerPub.attach(60,MqttToPub); //60s 一次发送
 }
 
+void MqttToPub(){
+  if (connectedOnce){
+    mRead();
+    }
+  else{
+    Serial.println("wifi Not Ready yet");
+    }
+}
 
 void mRead(){
-  if (millis() > (timemread + TimeBetweenReadingModbus))
-  {
-    timemread = millis();
     uint8_t result = node.readHoldingRegisters(0xA0, 51);
     if (result== node.ku8MBSuccess){
       const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(25);
@@ -307,18 +315,22 @@ void mRead(){
       root.printTo(Serial);
       Serial.println(" ");
       }
-    }
+      else {
+        Serial.println( "ttl errr");
+        }
+   // }
 }
   
 void flash()                        
 {  
-  if (millis() > (timemread + 2000))
-  {
-    timemread = millis();                      
-  static boolean output = HIGH;
-  digitalWrite(2, output);
-  output = !output;
-  }
+  if (connectedOnce){
+    static boolean output = HIGH;
+    digitalWrite(2, output);
+    output = !output;
+    }
+  else{
+    digitalWrite(2, LOW);
+    }                    
 }
 
 void loop() {
@@ -331,12 +343,11 @@ void loop() {
       // MQTT loop
       connectedOnce = true;
       lastMQTTReconnectAttempt = 0;
-      client.loop();
-      flash();
-      mRead(); 
+      client.loop();    
     }
     else
     {
+      connectedOnce=false;
       if (now - lastMQTTReconnectAttempt > 5000)
       {
         lastMQTTReconnectAttempt = now;
@@ -352,8 +363,4 @@ void loop() {
       ESP.reset();
     }
   }
-  if (now>252000000)
-  {
-    ESP.restart();
-    } 
 }
