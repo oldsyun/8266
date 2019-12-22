@@ -27,7 +27,7 @@
 
 char mqtt_user[parameters_size] = "your_username"; // not compulsory only if your broker needs authentication
 char mqtt_pass[parameters_size] = "your_password"; // not compulsory only if your broker needs authentication
-char mqtt_server[parameters_size] = "193.112.184.216";
+char mqtt_server[parameters_size] = "193.112.184.217";
 char mqtt_port[6] = "1883";
 char mqtt_topic[mqtt_topic_max_size] = "/gateway/";
 char gateway_name[parameters_size * 2] = Gateway_Name;
@@ -50,125 +50,134 @@ void saveConfigCallback () {
   shouldSaveConfig = true;
 }
 
-void setup_wifimanager()
+void setup_wifimanager(bool reset_settings )
 {
-  WiFi.mode(WIFI_STA);
-  Serial.println("mounting FS...");
-  if (SPIFFS.begin()) {
-    Serial.println("mounted file system");
-    if (SPIFFS.exists("/config.json")) 
+   if (reset_settings)
     {
-      //file exists, reading and loading
-      Serial.println("reading config file");
-      File configFile = SPIFFS.open("/config.json", "r");
-      if (configFile) {
-        Serial.println("opened config file");
-        size_t size = configFile.size();
-        // Allocate a buffer to store contents of the file.
-        std::unique_ptr<char[]> buf(new char[size]);
-        configFile.readBytes(buf.get(), size);
-        DynamicJsonBuffer jsonBuffer;
-        JsonObject& json = jsonBuffer.parseObject(buf.get());
-        json.printTo(Serial);
-        if (json.success())
-        {
-          Serial.println("\nparsed json");
-          if (json.containsKey("mqtt_server"))
-            strcpy(mqtt_server, json["mqtt_server"]);
-          if (json.containsKey("mqtt_port"))
-            strcpy(mqtt_port, json["mqtt_port"]);
-          if (json.containsKey("mqtt_user"))
-            strcpy(mqtt_user, json["mqtt_user"]);
-          if (json.containsKey("mqtt_pass"))
-            strcpy(mqtt_pass, json["mqtt_pass"]);
-          if (json.containsKey("mqtt_topic"))
-            strcpy(mqtt_topic, json["mqtt_topic"]);
-          if (json.containsKey("gateway_name"))
-            strcpy(gateway_name, json["gateway_name"]);
-        } 
-        else 
-        {
-          Serial.println("failed to load json config");
-        }
-        configFile.close();
+      WiFi.disconnect(true);
+      Serial.println("Formatting requested, result:");
+      Serial.println(SPIFFS.format());
+      ESP.reset();
       }
+  else{
+    WiFi.mode(WIFI_STA);
+    Serial.println("mounting FS...");
+    if (SPIFFS.begin()) {
+      Serial.println("mounted file system");
+      if (SPIFFS.exists("/config.json")) 
+      {
+        //file exists, reading and loading
+        Serial.println("reading config file");
+        File configFile = SPIFFS.open("/config.json", "r");
+        if (configFile) {
+          Serial.println("opened config file");
+          size_t size = configFile.size();
+          // Allocate a buffer to store contents of the file.
+          std::unique_ptr<char[]> buf(new char[size]);
+          configFile.readBytes(buf.get(), size);
+          DynamicJsonBuffer jsonBuffer;
+          JsonObject& json = jsonBuffer.parseObject(buf.get());
+          json.printTo(Serial);
+          if (json.success())
+          {
+            Serial.println("\nparsed json");
+            if (json.containsKey("mqtt_server"))
+              strcpy(mqtt_server, json["mqtt_server"]);
+            if (json.containsKey("mqtt_port"))
+              strcpy(mqtt_port, json["mqtt_port"]);
+            if (json.containsKey("mqtt_user"))
+              strcpy(mqtt_user, json["mqtt_user"]);
+            if (json.containsKey("mqtt_pass"))
+              strcpy(mqtt_pass, json["mqtt_pass"]);
+            if (json.containsKey("mqtt_topic"))
+              strcpy(mqtt_topic, json["mqtt_topic"]);
+            if (json.containsKey("gateway_name"))
+              strcpy(gateway_name, json["gateway_name"]);
+          } 
+          else 
+          {
+            Serial.println("failed to load json config");
+          }
+          configFile.close();
+        }
+      }
+    } else {
+      Serial.println("failed to mount FS");
     }
-  } else {
-    Serial.println("failed to mount FS");
-  }
-  //end read
-  // The extra parameters to be configured (can be either global or just in the setup)
-  // After connecting, parameter.getValue() will get you the configured value
-  // id/name placeholder/prompt default length
-  WiFiManagerParameter custom_mqtt_server("server", "mqtt server", mqtt_server, parameters_size);
-  WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 6);
-  WiFiManagerParameter custom_mqtt_user("user", "mqtt user", mqtt_user, parameters_size);
-  WiFiManagerParameter custom_mqtt_pass("pass", "mqtt pass", mqtt_pass, parameters_size);
-  WiFiManagerParameter custom_mqtt_topic("topic", "mqtt base topic", mqtt_topic, mqtt_topic_max_size);
-  WiFiManagerParameter custom_gateway_name("name", "gateway name", gateway_name, parameters_size * 2);
-
-  //WiFiManager
-  //Local intialization. Once its business is done, there is no need to keep it around
-  WiFiManager wifiManager;
-
-  //wifiManager.setConnectTimeout(3);
-  //Set timeout before going to portal
- // wifiManager.setConfigPortalTimeout(30);
+    //end read
+    // The extra parameters to be configured (can be either global or just in the setup)
+    // After connecting, parameter.getValue() will get you the configured value
+    // id/name placeholder/prompt default length
+    WiFiManagerParameter custom_mqtt_server("server", "mqtt server", mqtt_server, parameters_size);
+    WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 6);
+    WiFiManagerParameter custom_mqtt_user("user", "mqtt user", mqtt_user, parameters_size);
+    WiFiManagerParameter custom_mqtt_pass("pass", "mqtt pass", mqtt_pass, parameters_size);
+    WiFiManagerParameter custom_mqtt_topic("topic", "mqtt base topic", mqtt_topic, mqtt_topic_max_size);
+    WiFiManagerParameter custom_gateway_name("name", "gateway name", gateway_name, parameters_size * 2);
   
-  //set config save notify callback
-  wifiManager.setSaveConfigCallback(saveConfigCallback);
-
-  //set static ip
-  //wifiManager.setSTAStaticIPConfig(IPAddress(10,0,1,99), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
+    //WiFiManager
+    //Local intialization. Once its business is done, there is no need to keep it around
+    WiFiManager wifiManager;
   
-  //add all your parameters here
-  wifiManager.addParameter(&custom_mqtt_server);
-  wifiManager.addParameter(&custom_mqtt_port);
-  wifiManager.addParameter(&custom_mqtt_user);
-  wifiManager.addParameter(&custom_mqtt_pass);
-  wifiManager.addParameter(&custom_gateway_name);
-  wifiManager.addParameter(&custom_mqtt_topic);
-
-  if (!wifiManager.autoConnect("CSKGTMGateway", "j10j10j10")) 
-  {
-    Serial.println("failed to connect and hit timeout");
-    delay(3000);
-    //reset and try again, or maybe put it to deep sleep
-    ESP.reset();
-    delay(5000);
-  }
-
-  //if you get here you have connected to the WiFi
-  Serial.println("connected...yeey :)");
-
-  //read updated parameters
-  strcpy(mqtt_server, custom_mqtt_server.getValue());
-  strcpy(mqtt_port, custom_mqtt_port.getValue());
-  strcpy(mqtt_user, custom_mqtt_user.getValue());
-  strcpy(mqtt_pass, custom_mqtt_pass.getValue());
-  strcpy(mqtt_topic, custom_mqtt_topic.getValue());
-  strcpy(gateway_name, custom_gateway_name.getValue());
-
-  //save the custom parameters to FS
-  if (shouldSaveConfig) {
-    Serial.println("saving config");
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& json = jsonBuffer.createObject();
-    json["mqtt_server"] = mqtt_server;
-    json["mqtt_port"] = mqtt_port;
-    json["mqtt_user"] = mqtt_user;
-    json["mqtt_pass"] = mqtt_pass;
-    json["mqtt_topic"] = mqtt_topic;
-    json["gateway_name"] = gateway_name;
-
-    File configFile = SPIFFS.open("/config.json", "w");
-    if (!configFile) {
-      Serial.println("failed to open config file for writing");
+    //wifiManager.setConnectTimeout(3);
+    //Set timeout before going to portal
+   // wifiManager.setConfigPortalTimeout(30);
+    
+    //set config save notify callback
+    wifiManager.setSaveConfigCallback(saveConfigCallback);
+  
+    //set static ip
+    //wifiManager.setSTAStaticIPConfig(IPAddress(10,0,1,99), IPAddress(10,0,1,1), IPAddress(255,255,255,0));
+    
+    //add all your parameters here
+    wifiManager.addParameter(&custom_mqtt_server);
+    wifiManager.addParameter(&custom_mqtt_port);
+    wifiManager.addParameter(&custom_mqtt_user);
+    wifiManager.addParameter(&custom_mqtt_pass);
+    wifiManager.addParameter(&custom_gateway_name);
+    wifiManager.addParameter(&custom_mqtt_topic);
+  
+    if (!wifiManager.autoConnect("CSKGTMGateway", "j10j10j10")) 
+    {
+      Serial.println("failed to connect and hit timeout");
+      delay(3000);
+      //reset and try again, or maybe put it to deep sleep
+      ESP.reset();
+      delay(5000);
     }
-    json.printTo(Serial);
-    json.printTo(configFile);
-    configFile.close();
-    //end save
+  
+    //if you get here you have connected to the WiFi
+    Serial.println("connected...yeey :)");
+  
+    //read updated parameters
+    strcpy(mqtt_server, custom_mqtt_server.getValue());
+    strcpy(mqtt_port, custom_mqtt_port.getValue());
+    strcpy(mqtt_user, custom_mqtt_user.getValue());
+    strcpy(mqtt_pass, custom_mqtt_pass.getValue());
+    strcpy(mqtt_topic, custom_mqtt_topic.getValue());
+    strcpy(gateway_name, custom_gateway_name.getValue());
+  
+    //save the custom parameters to FS
+    if (shouldSaveConfig) {
+      Serial.println("saving config");
+      DynamicJsonBuffer jsonBuffer;
+      JsonObject& json = jsonBuffer.createObject();
+      json["mqtt_server"] = mqtt_server;
+      json["mqtt_port"] = mqtt_port;
+      json["mqtt_user"] = mqtt_user;
+      json["mqtt_pass"] = mqtt_pass;
+      json["mqtt_topic"] = mqtt_topic;
+      json["gateway_name"] = gateway_name;
+  
+      File configFile = SPIFFS.open("/config.json", "w");
+      if (!configFile) {
+        Serial.println("failed to open config file for writing");
+      }
+      json.printTo(Serial);
+      json.printTo(configFile);
+      configFile.close();
+      //end save
+    }
   }
 }
 
@@ -200,9 +209,9 @@ void reconnect()
     else
     {
       failure_number++; // we count the failure
-      if (failure_number > maxMQTTretry && !connectedOnce)
+      if (failure_number > maxMQTTretry )
       {
-        setup_wifimanager();
+        setup_wifimanager(true);
         setup_parameters();
       }
       Serial.println(F("failed, rc="));
@@ -219,7 +228,7 @@ void setup() {
   node.begin(1, swSer1);
   WiFi.macAddress(MAC_array);
   sprintf(gateway_name, "%s%02X%02X%02X%02X%02X%02X", gateway_name,MAC_array[0],MAC_array[1],MAC_array[2], MAC_array[3],MAC_array[4],MAC_array[5]);
-  setup_wifimanager();
+  setup_wifimanager(false);
   Serial.println(WiFi.macAddress());
   Serial.println(WiFi.localIP().toString());
   long port;
@@ -250,7 +259,7 @@ void mRead()
   uint8_t result = node.readHoldingRegisters(0xA0, 51);
   if (result== node.ku8MBSuccess)
   {
-    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(25);
+    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(37);
     DynamicJsonBuffer jsonBuffer(capacity);
     JsonObject& root = jsonBuffer.createObject();
     JsonArray& device = root.createNestedArray("device");
@@ -298,10 +307,11 @@ void mRead()
     String topic = String(mqtt_topic) + String(toMQTT);
     char JSONmessageBuffer[1300];
     root.printTo(JSONmessageBuffer,sizeof(JSONmessageBuffer));
-    client.publish((char *)topic.c_str(),JSONmessageBuffer);
-    Serial.println( topic);
-    root.printTo(Serial);
-    Serial.println(" ");
+    if(client.publish((char *)topic.c_str(),JSONmessageBuffer))
+    {
+      Serial.println( topic);
+      root.printTo(Serial);
+      Serial.println(" ");}
     }
     else 
     {
