@@ -250,7 +250,7 @@ void mRead()
   uint8_t result = node.readHoldingRegisters(0xA0, 51);
   if (result== node.ku8MBSuccess)
   {
-    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(25);
+    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(37);
     DynamicJsonBuffer jsonBuffer(capacity);
     JsonObject& root = jsonBuffer.createObject();
     JsonArray& device = root.createNestedArray("device");
