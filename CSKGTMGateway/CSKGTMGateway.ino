@@ -16,18 +16,19 @@
 #define will_Retain true
 #define will_Message "offline"
 #define Gateway_AnnouncementMsg "online"
-#define TimeBetweenReadingModbus 60000
 #define toMQTT  "/data"
 
 #if defined(ESP8266) && !defined(D5)
 #define D5 (14)
 #define D6 (12)
+#define TRIGGERPIN (5) //D1
+#define LED (2)
 #endif
 #define BAUD_RATE 9600
 
 char mqtt_user[parameters_size] = "your_username"; // not compulsory only if your broker needs authentication
 char mqtt_pass[parameters_size] = "your_password"; // not compulsory only if your broker needs authentication
-char mqtt_server[parameters_size] = "193.112.184.217";
+char mqtt_server[parameters_size] = "193.112.184.216";
 char mqtt_port[6] = "1883";
 char mqtt_topic[mqtt_topic_max_size] = "/gateway/";
 char gateway_name[parameters_size * 2] = Gateway_Name;
@@ -204,15 +205,14 @@ void reconnect()
       failure_number = 0;
       // Once connected, publish an announcement...
       client.publish((char *)willTopic.c_str(), Gateway_AnnouncementMsg, will_Retain);
-      mRead();
+      //mRead();
     }
     else
     {
       failure_number++; // we count the failure
       if (failure_number > maxMQTTretry )
       {
-        setup_wifimanager(true);
-        setup_parameters();
+        ESP.reset();
       }
       Serial.println(F("failed, rc="));
       Serial.println(client.state());
@@ -223,6 +223,7 @@ void reconnect()
 
 void setup() {
   pinMode(2, OUTPUT);  
+  pinMode(15,INPUT);
   Serial.begin(115200);
   swSer1.begin(9600, SWSERIAL_8N1, D5, D6, false, 256);
   node.begin(1, swSer1);
@@ -292,18 +293,18 @@ void mRead()
     device_0_variable["P10"] = node.getResponseBuffer(22);
     device_0_variable["P11"] = node.getResponseBuffer(23);
     device_0_variable["P12"] = node.getResponseBuffer(24);
-    device_0_variable["EP1"] = (node.getResponseBuffer(28)+node.getResponseBuffer(29) << 16)/100.0f;
-    device_0_variable["EP2"] = (node.getResponseBuffer(30)+node.getResponseBuffer(31) << 16)/100.0f;
-    device_0_variable["EP3"] = (node.getResponseBuffer(32)+node.getResponseBuffer(33) << 16)/100.0f;
-    device_0_variable["EP4"] = (node.getResponseBuffer(34)+node.getResponseBuffer(35) << 16)/100.0f;
-    device_0_variable["EP5"] = (node.getResponseBuffer(36)+node.getResponseBuffer(37) << 16)/100.0f;
-    device_0_variable["EP6"] = (node.getResponseBuffer(38)+node.getResponseBuffer(39) << 16)/100.0f;
-    device_0_variable["EP7"] = (node.getResponseBuffer(40)+node.getResponseBuffer(41) << 16)/100.0f;
-    device_0_variable["EP8"] = (node.getResponseBuffer(42)+node.getResponseBuffer(43) << 16)/100.0f;
-    device_0_variable["EP9"] = (node.getResponseBuffer(44)+node.getResponseBuffer(45) << 16)/100.0f;
-    device_0_variable["EP10"] = (node.getResponseBuffer(46)+node.getResponseBuffer(47) << 16)/100.0f;
-    device_0_variable["EP11"] = (node.getResponseBuffer(48)+node.getResponseBuffer(49) << 16)/100.0f;
-    device_0_variable["EP12"] = (node.getResponseBuffer(50)+node.getResponseBuffer(51) << 16)/100.0f;
+    device_0_variable["EP1"] = (node.getResponseBuffer(28)<< 16 + node.getResponseBuffer(29) )/100.0f;
+    device_0_variable["EP2"] = (node.getResponseBuffer(30)<< 16 + node.getResponseBuffer(31) )/100.0f;
+    device_0_variable["EP3"] = (node.getResponseBuffer(32)<< 16 + node.getResponseBuffer(33) )/100.0f;
+    device_0_variable["EP4"] = (node.getResponseBuffer(34)<< 16 + node.getResponseBuffer(35) )/100.0f;
+    device_0_variable["EP5"] = (node.getResponseBuffer(36)<< 16 + node.getResponseBuffer(37) )/100.0f;
+    device_0_variable["EP6"] = (node.getResponseBuffer(38)<< 16 + node.getResponseBuffer(39) )/100.0f;
+    device_0_variable["EP7"] = (node.getResponseBuffer(40)<< 16 + node.getResponseBuffer(41) )/100.0f;
+    device_0_variable["EP8"] = (node.getResponseBuffer(42)<< 16 + node.getResponseBuffer(43) )/100.0f;
+    device_0_variable["EP9"] = (node.getResponseBuffer(44)<< 16 + node.getResponseBuffer(45) )/100.0f;
+    device_0_variable["EP10"] = (node.getResponseBuffer(46)<< 16 + node.getResponseBuffer(47) )/100.0f;
+    device_0_variable["EP11"] = (node.getResponseBuffer(48)<< 16 + node.getResponseBuffer(49) )/100.0f;
+    device_0_variable["EP12"] = (node.getResponseBuffer(50)<< 16 + node.getResponseBuffer(51) )/100.0f;
     String topic = String(mqtt_topic) + String(toMQTT);
     char JSONmessageBuffer[1300];
     root.printTo(JSONmessageBuffer,sizeof(JSONmessageBuffer));
@@ -323,16 +324,38 @@ void flash()
 {  
   if (connectedOnce){
     static boolean output = HIGH;
-    digitalWrite(2, output);
+    digitalWrite(LED, output);
     output = !output;
     }
   else{
-    digitalWrite(2, LOW);
+    digitalWrite(LED, LOW);
     }
 }
 
+void checkButton()
+{ 
+  if (digitalRead(TRIGGERPIN) == LOW)
+  {
+    // poor mans debounce/press-hold, code not ideal for production
+    delay(50);
+    if (digitalRead(TRIGGERPIN) == LOW)
+    {
+      Serial.println(F("Trigger button Pressed"));
+      // still holding button for 3000 ms, reset settings, code not ideaa for production
+      delay(6000); // reset delay hold
+      if (digitalRead(TRIGGERPIN) == LOW)
+      {
+        Serial.println(F("Button Held"));
+        Serial.println(F("Erasing ESP Config, restarting"));
+        setup_wifimanager(true);
+      }
+    }
+  }
+}
+
 void loop() {
- unsigned long now = millis();
+  unsigned long now = millis();
+  checkButton();
   if (WiFi.status() == WL_CONNECTED)
   {
     lastNTWKReconnectAttempt = 0;
@@ -350,14 +373,6 @@ void loop() {
         lastMQTTReconnectAttempt = now;
         reconnect();
       }
-    }
-  }
-  else
-  { // disconnected from network
-    if (now - lastNTWKReconnectAttempt > 10000)
-    {
-      lastNTWKReconnectAttempt = now;
-      ESP.reset();
     }
   }
 }
