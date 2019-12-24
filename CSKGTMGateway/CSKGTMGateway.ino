@@ -222,8 +222,8 @@ void reconnect()
 }
 
 void setup() {
-  pinMode(2, OUTPUT);  
-  pinMode(15,INPUT);
+  pinMode(LED, OUTPUT);  
+  pinMode(TRIGGERPIN,INPUT);
   Serial.begin(115200);
   swSer1.begin(9600, SWSERIAL_8N1, D5, D6, false, 256);
   node.begin(1, swSer1);
@@ -240,7 +240,7 @@ void setup() {
   lastMQTTReconnectAttempt = 0;
   lastNTWKReconnectAttempt = 0;
   tickerRead.attach(2, flash);
-  tickerPub.attach(60,MqttToPub); //60s 一次发送
+  tickerPub.attach(15,MqttToPub); 
 }
 
 void MqttToPub()
@@ -334,16 +334,16 @@ void flash()
 
 void checkButton()
 { 
-  if (digitalRead(TRIGGERPIN) == LOW)
+  if (digitalRead(TRIGGERPIN) == HIGH)
   {
     // poor mans debounce/press-hold, code not ideal for production
     delay(50);
-    if (digitalRead(TRIGGERPIN) == LOW)
+    if (digitalRead(TRIGGERPIN) == HIGH)
     {
       Serial.println(F("Trigger button Pressed"));
       // still holding button for 3000 ms, reset settings, code not ideaa for production
       delay(6000); // reset delay hold
-      if (digitalRead(TRIGGERPIN) == LOW)
+      if (digitalRead(TRIGGERPIN) == HIGH)
       {
         Serial.println(F("Button Held"));
         Serial.println(F("Erasing ESP Config, restarting"));
