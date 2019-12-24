@@ -240,7 +240,7 @@ void setup() {
   lastMQTTReconnectAttempt = 0;
   lastNTWKReconnectAttempt = 0;
   tickerRead.attach(2, flash);
-  tickerPub.attach(15,MqttToPub); 
+  tickerPub.attach(60,MqttToPub); 
 }
 
 void MqttToPub()
@@ -260,7 +260,7 @@ void mRead()
   uint8_t result = node.readHoldingRegisters(0xA0, 51);
   if (result== node.ku8MBSuccess)
   {
-    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(37);
+    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(39);
     DynamicJsonBuffer jsonBuffer(capacity);
     JsonObject& root = jsonBuffer.createObject();
     JsonArray& device = root.createNestedArray("device");
@@ -274,37 +274,39 @@ void mRead()
     device_0_variable["I1"] = node.getResponseBuffer(3)/100.0f;
     device_0_variable["I2"] = node.getResponseBuffer(4)/100.0f;
     device_0_variable["I3"] = node.getResponseBuffer(5)/100.0f;
-    device_0_variable["I6"] = node.getResponseBuffer(6)/100.0f;
-    device_0_variable["I7"] = node.getResponseBuffer(7)/100.0f;
-    device_0_variable["I8"] = node.getResponseBuffer(8)/100.0f;
-    device_0_variable["I9"] = node.getResponseBuffer(9)/100.0f;
-    device_0_variable["I10"] = node.getResponseBuffer(10)/100.0f;
-    device_0_variable["I11"] = node.getResponseBuffer(11)/100.0f;
-    device_0_variable["I12"] = node.getResponseBuffer(12)/100.0f;
-    device_0_variable["P1"] = node.getResponseBuffer(13);
-    device_0_variable["P2"] = node.getResponseBuffer(14);
-    device_0_variable["P3"] = node.getResponseBuffer(15);
-    device_0_variable["P4"] = node.getResponseBuffer(16);
-    device_0_variable["P5"] = node.getResponseBuffer(17);
-    device_0_variable["P6"] = node.getResponseBuffer(18);
-    device_0_variable["P7"] = node.getResponseBuffer(19);
-    device_0_variable["P8"] = node.getResponseBuffer(20);
-    device_0_variable["P9"] = node.getResponseBuffer(21);
-    device_0_variable["P10"] = node.getResponseBuffer(22);
-    device_0_variable["P11"] = node.getResponseBuffer(23);
-    device_0_variable["P12"] = node.getResponseBuffer(24);
-    device_0_variable["EP1"] = (node.getResponseBuffer(28)<< 16 + node.getResponseBuffer(29) )/100.0f;
-    device_0_variable["EP2"] = (node.getResponseBuffer(30)<< 16 + node.getResponseBuffer(31) )/100.0f;
-    device_0_variable["EP3"] = (node.getResponseBuffer(32)<< 16 + node.getResponseBuffer(33) )/100.0f;
-    device_0_variable["EP4"] = (node.getResponseBuffer(34)<< 16 + node.getResponseBuffer(35) )/100.0f;
-    device_0_variable["EP5"] = (node.getResponseBuffer(36)<< 16 + node.getResponseBuffer(37) )/100.0f;
-    device_0_variable["EP6"] = (node.getResponseBuffer(38)<< 16 + node.getResponseBuffer(39) )/100.0f;
-    device_0_variable["EP7"] = (node.getResponseBuffer(40)<< 16 + node.getResponseBuffer(41) )/100.0f;
-    device_0_variable["EP8"] = (node.getResponseBuffer(42)<< 16 + node.getResponseBuffer(43) )/100.0f;
-    device_0_variable["EP9"] = (node.getResponseBuffer(44)<< 16 + node.getResponseBuffer(45) )/100.0f;
-    device_0_variable["EP10"] = (node.getResponseBuffer(46)<< 16 + node.getResponseBuffer(47) )/100.0f;
-    device_0_variable["EP11"] = (node.getResponseBuffer(48)<< 16 + node.getResponseBuffer(49) )/100.0f;
-    device_0_variable["EP12"] = (node.getResponseBuffer(50)<< 16 + node.getResponseBuffer(51) )/100.0f;
+    device_0_variable["I4"] = node.getResponseBuffer(6)/100.0f;
+    device_0_variable["I5"] = node.getResponseBuffer(7)/100.0f;
+    device_0_variable["I6"] = node.getResponseBuffer(8)/100.0f;
+    device_0_variable["I7"] = node.getResponseBuffer(9)/100.0f;
+    device_0_variable["I8"] = node.getResponseBuffer(10)/100.0f;
+    device_0_variable["I9"] = node.getResponseBuffer(11)/100.0f;
+    device_0_variable["I10"] = node.getResponseBuffer(12)/100.0f;
+    device_0_variable["I11"] = node.getResponseBuffer(13)/100.0f;
+    device_0_variable["I12"] = node.getResponseBuffer(14)/100.0f;
+    device_0_variable["P1"] = node.getResponseBuffer(15);
+    device_0_variable["P2"] = node.getResponseBuffer(16);
+    device_0_variable["P3"] = node.getResponseBuffer(17);
+    device_0_variable["P4"] = node.getResponseBuffer(18);
+    device_0_variable["P5"] = node.getResponseBuffer(19);
+    device_0_variable["P6"] = node.getResponseBuffer(20);
+    device_0_variable["P7"] = node.getResponseBuffer(21);
+    device_0_variable["P8"] = node.getResponseBuffer(22);
+    device_0_variable["P9"] = node.getResponseBuffer(23);
+    device_0_variable["P10"] = node.getResponseBuffer(24);
+    device_0_variable["P11"] = node.getResponseBuffer(25);
+    device_0_variable["P12"] = node.getResponseBuffer(26);
+    device_0_variable["EP1"] = (node.getResponseBuffer(27)<< 16 + node.getResponseBuffer(28) )/100.0f;
+    device_0_variable["EP2"] = (node.getResponseBuffer(29)<< 16 + node.getResponseBuffer(30) )/100.0f;
+    device_0_variable["EP3"] = (node.getResponseBuffer(31)<< 16 + node.getResponseBuffer(32) )/100.0f;
+    device_0_variable["EP4"] = (node.getResponseBuffer(33)<< 16 + node.getResponseBuffer(34) )/100.0f;
+    device_0_variable["EP5"] = (node.getResponseBuffer(35)<< 16 + node.getResponseBuffer(36) )/100.0f;
+    device_0_variable["EP6"] = (node.getResponseBuffer(37)<< 16 + node.getResponseBuffer(38) )/100.0f;
+    device_0_variable["EP7"] = (node.getResponseBuffer(39)<< 16 + node.getResponseBuffer(40) )/100.0f;
+    device_0_variable["EP8"] = (node.getResponseBuffer(41)<< 16 + node.getResponseBuffer(42) )/100.0f;
+    device_0_variable["EP9"] = (node.getResponseBuffer(43)<< 16 + node.getResponseBuffer(44) )/100.0f;
+    device_0_variable["EP10"] = (node.getResponseBuffer(45)<< 16 + node.getResponseBuffer(46) )/100.0f;
+    device_0_variable["EP11"] = (node.getResponseBuffer(47)<< 16 + node.getResponseBuffer(48) )/100.0f;
+    device_0_variable["EP12"] = (node.getResponseBuffer(49)<< 16 + node.getResponseBuffer(50) )/100.0f;
     String topic = String(mqtt_topic) + String(toMQTT);
     char JSONmessageBuffer[1300];
     root.printTo(JSONmessageBuffer,sizeof(JSONmessageBuffer));
@@ -334,16 +336,16 @@ void flash()
 
 void checkButton()
 { 
-  if (digitalRead(TRIGGERPIN) == HIGH)
+  if (digitalRead(TRIGGERPIN) == LOW)
   {
     // poor mans debounce/press-hold, code not ideal for production
     delay(50);
-    if (digitalRead(TRIGGERPIN) == HIGH)
+    if (digitalRead(TRIGGERPIN) == LOW)
     {
       Serial.println(F("Trigger button Pressed"));
       // still holding button for 3000 ms, reset settings, code not ideaa for production
       delay(6000); // reset delay hold
-      if (digitalRead(TRIGGERPIN) == HIGH)
+      if (digitalRead(TRIGGERPIN) == LOW)
       {
         Serial.println(F("Button Held"));
         Serial.println(F("Erasing ESP Config, restarting"));
