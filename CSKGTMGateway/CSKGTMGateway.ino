@@ -190,9 +190,76 @@ void setup_parameters()
   strcat(mqtt_topic, gateway_name);
 }
 
-void callback(char* topic, byte* payload, unsigned int length)
- {
+void callback(char *topic, byte *payload, unsigned int length)
+{
+  // In order to republish this payload, a copy must be made
+  // as the orignal payload buffer will be overwritten whilst
+  // constructing the PUBLISH packet.
+  Serial.println(F("Hey I got a callback "));
+  // Allocate the correct amount of memory for the payload copy
+  byte *p = (byte *)malloc(length + 1);
+  // Copy the payload to the new buffer
+  memcpy(p, payload, length);
+  // Conversion to a printable string
+  p[length] = '\0';
+  //launch the function to treat received data if this data concern OpenMQTTGateway
+  if ((strstr(topic, subjectMultiGTWKey) != NULL) || (strstr(topic, subjectGTWSendKey) != NULL))
+    receivingMQTT(topic, (char *)p);
+  // Free the memory
+  free(p);
+}
 
+void receivingMQTT(char *topicOri, char *datacallback)
+{
+
+  StaticJsonBuffer<JSON_MSG_BUFFER> jsonBuffer;
+  JsonObject &jsondata = jsonBuffer.parseObject(datacallback);
+
+  if (strstr(topicOri, subjectMultiGTWKey) != NULL) // storing received value so as to avoid publishing this value if it has been already sent by this or another OpenMQTTGateway
+  {
+    Serial.println(F("Store str"));
+    unsigned long data = 0;
+    if (jsondata.success())
+      data = jsondata["value"];
+    if (data != 0)
+    {
+      storeValue(data);
+      Serial.println(F("JSON str"));
+    }
+  }
+  if (jsondata.success())
+  {                   
+    MQTTtoONOFF(topicOri, jsondata);
+  }
+ // else
+//  { // not a json object --> simple decoding
+ // }
+
+}
+
+void MQTTtoONOFF(char *topicOri, JsonObject &ONOFFdata)
+{
+  if (cmpToMainTopic(topicOri, subjectMQTTtoONOFF))
+  {
+    Serial.println(F("MQTTtoONOFF json data analysis"));
+    int boolSWITCHTYPE = ONOFFdata["cmd"] | 99;
+    int pin = ONOFFdata["pin"] | ACTUATOR_ONOFF_PIN;
+    if (boolSWITCHTYPE != 99)
+    {
+      Serial.println(F("MQTTtoONOFF boolSWITCHTYPE ok"));
+      Serial.println(boolSWITCHTYPE);
+      Serial.println(F("pin number"));
+      Serial.println(pin);
+      pinMode(pin, OUTPUT);
+      digitalWrite(pin, boolSWITCHTYPE);
+      // we acknowledge the sending by publishing the value to an acknowledgement topic
+      pub(subjectGTWONOFFtoMQTT, ONOFFdata);
+    }
+    else
+    {
+      trc(F("MQTTtoONOFF failed json read"));
+    }
+  }
 }
 
 void reconnect()
