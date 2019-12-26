@@ -6,6 +6,9 @@
 #include <SoftwareSerial.h>
 #include <WiFiManager.h>  
 #include <Ticker.h>
+#include <ArduinoOTA.h>
+#include <WiFiUdp.h>
+#include <ESP8266mDNS.h>
 
 #define parameters_size 20
 #define mqtt_topic_max_size 100
@@ -212,7 +215,7 @@ void reconnect()
       failure_number++; // we count the failure
       if (failure_number > maxMQTTretry )
       {
-        ESP.reset();
+        ESP.restart();
       }
       Serial.println(F("failed, rc="));
       Serial.println(client.state());
@@ -241,6 +244,38 @@ void setup() {
   lastNTWKReconnectAttempt = 0;
   tickerRead.attach(2, flash);
   tickerPub.attach(60,MqttToPub); 
+  
+  ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  ArduinoOTA.setHostname(gateway_name);
+
+  // No authentication by default
+  ArduinoOTA.setPassword("admin");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println(F("Start"));
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println(F("\nEnd"));
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR)
+      Serial.println(F("Auth Failed"));
+    else if (error == OTA_BEGIN_ERROR)
+      Serial.println(F("Begin Failed"));
+    else if (error == OTA_CONNECT_ERROR)
+      Serial.println(F("Connect Failed"));
+    else if (error == OTA_RECEIVE_ERROR)
+      Serial.println(F("Receive Failed"));
+    else if (error == OTA_END_ERROR)
+      Serial.println(F("End Failed"));
+  });
+  ArduinoOTA.begin();
 }
 
 void MqttToPub()
@@ -248,7 +283,7 @@ void MqttToPub()
   if (connectedOnce)
   {
     mRead();
-    }
+     }
   else
   {
     Serial.println("wifi Not Ready yet");
@@ -366,7 +401,8 @@ void loop() {
       // MQTT loop
       connectedOnce = true;
       lastMQTTReconnectAttempt = 0;
-      client.loop();    
+      client.loop();   
+      ArduinoOTA.handle(); 
     }
     else{
       connectedOnce=false;
