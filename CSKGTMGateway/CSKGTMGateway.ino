@@ -35,6 +35,7 @@ char mqtt_server[parameters_size] = "193.112.184.216";
 char mqtt_port[6] = "1883";
 char mqtt_topic[mqtt_topic_max_size] = "/gateway/";
 char gateway_name[parameters_size * 2] = Gateway_Name;
+char WifiManager_ssid[parameters_size * 2] = "TM"; 
 bool shouldSaveConfig = false;
 bool connectedOnce = false;
 int failure_number = 0;
@@ -141,7 +142,7 @@ void setup_wifimanager(bool reset_settings )
     wifiManager.addParameter(&custom_gateway_name);
     wifiManager.addParameter(&custom_mqtt_topic);
   
-    if (!wifiManager.autoConnect("CSKGTMGateway", "j10j10j10")) 
+    if (!wifiManager.autoConnect(WifiManager_ssid, "j10j10j10")) 
     {
       Serial.println("failed to connect and hit timeout");
       delay(3000);
@@ -229,7 +230,7 @@ void receivingMQTT(char *topicOri, char *datacallback)
   }
   if (jsondata.success())
   {                   
-    MQTTtoONOFF(topicOri, jsondata);
+    //MQTTtoONOFF(topicOri, jsondata);
   }
  // else
 //  { // not a json object --> simple decoding
@@ -239,7 +240,7 @@ void receivingMQTT(char *topicOri, char *datacallback)
 
 void MQTTtoONOFF(char *topicOri, JsonObject &ONOFFdata)
 {
-  if (cmpToMainTopic(topicOri, subjectMQTTtoONOFF))
+  /* if (cmpToMainTopic(topicOri, subjectMQTTtoONOFF))
   {
     Serial.println(F("MQTTtoONOFF json data analysis"));
     int boolSWITCHTYPE = ONOFFdata["cmd"] | 99;
@@ -259,7 +260,7 @@ void MQTTtoONOFF(char *topicOri, JsonObject &ONOFFdata)
     {
       trc(F("MQTTtoONOFF failed json read"));
     }
-  }
+  } */
 }
 
 void reconnect()
@@ -299,6 +300,7 @@ void setup() {
   node.begin(1, swSer1);
   WiFi.macAddress(MAC_array);
   sprintf(gateway_name, "%s%02X%02X%02X%02X%02X%02X", gateway_name,MAC_array[0],MAC_array[1],MAC_array[2], MAC_array[3],MAC_array[4],MAC_array[5]);
+  sprintf(WifiManager_ssid, "%s%02X%02X%02X", WifiManager_ssid, MAC_array[3],MAC_array[4],MAC_array[5]);
   setup_wifimanager(false);
   Serial.println(WiFi.macAddress());
   Serial.println(WiFi.localIP().toString());
